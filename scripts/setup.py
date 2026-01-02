@@ -246,8 +246,24 @@ def check_espeak_ng():
     
     if sys.platform == 'linux':
         # En Linux, intentar instalar con apt
-        system = platform.freedesktop_os_release()
-        if system.get('ID') in ['ubuntu', 'debian']:
+        try:
+            # Python 3.10+
+            system = platform.freedesktop_os_release()
+            os_id = system.get('ID', '')
+        except AttributeError:
+            # Python 3.9 fallback - leer /etc/os-release directamente
+            try:
+                with open('/etc/os-release', 'r') as f:
+                    os_release = {}
+                    for line in f:
+                        if '=' in line:
+                            key, value = line.strip().split('=', 1)
+                            os_release[key] = value.strip('"')
+                    os_id = os_release.get('ID', '')
+            except (FileNotFoundError, IOError):
+                os_id = ''
+        
+        if os_id in ['ubuntu', 'debian']:
             print_info("Instalando espeak-ng con apt...")
             try:
                 subprocess.run(['sudo', 'apt-get', 'update'], check=True)
