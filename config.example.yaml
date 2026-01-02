@@ -1,0 +1,58 @@
+# Configuración de ejemplo para entrenamiento de Piper
+# Este archivo muestra los parámetros disponibles
+
+# Configuración de Audio
+audio:
+  sample_rate: 22050        # Hz - 22050 para modelos medium
+  filter_length: 1024
+  hop_length: 256
+  win_length: 1024
+  mel_channels: 80
+  
+# Configuración de Entrenamiento
+training:
+  batch_size: 8             # Ajustar según VRAM disponible
+  learning_rate: 0.0001     # 1e-4
+  max_epochs: 10000
+  checkpoint_epochs: 1000   # Guardar cada N épocas
+  validation_split: 0.05    # 5% para validación
+  num_test_examples: 5
+  precision: "16-mixed"     # Mixed precision para ahorrar memoria
+  
+  # Early stopping
+  patience: 5000            # Parar si no mejora en N épocas
+  
+# Configuración del Modelo
+model:
+  quality: medium           # x_low, low, medium, high
+  hidden_channels: 192
+  inter_channels: 192
+  
+# Transfer Learning
+transfer_learning:
+  enabled: true
+  base_model: "modelos_base/es_ES-sharvard-medium.ckpt"
+  
+# Optimizaciones para AMD GPU (ROCm)
+hardware:
+  accelerator: "gpu"
+  devices: 1
+  
+  # Variables de entorno recomendadas
+  # Configurar antes de entrenar:
+  # export HSA_OVERRIDE_GFX_VERSION=10.3.0  # Para RX 6600
+  # export PYTORCH_HIP_ALLOC_CONF=max_split_size_mb:512
+  
+# Configuración de Inferencia
+inference:
+  noise_scale: 0.667        # Variabilidad en pronunciación (0.5-1.0)
+  length_scale: 1.0         # Velocidad de habla (0.8-1.2)
+  noise_w: 0.8              # Variación en duración de fonemas
+  
+# Dataset
+dataset:
+  format: "ljspeech"
+  language: "es-es"
+  single_speaker: true      # false para multi-speaker
+  min_audio_length: 0.5     # segundos
+  max_audio_length: 15.0    # segundos
