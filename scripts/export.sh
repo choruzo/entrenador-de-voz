@@ -1,5 +1,10 @@
 #!/bin/bash
 # Script de exportación de modelo Piper a formato ONNX
+#
+# NOTA: Está disponible una versión en Python compatible con Windows:
+#   python scripts/export.py <checkpoint> <archivo_salida.onnx>
+#
+# Esta versión bash solo funciona en Linux.
 
 set -e
 

@@ -1,6 +1,11 @@
 #!/bin/bash
 # Script de preprocesamiento de datos para Piper
 # Convierte audio y texto al formato requerido para entrenamiento
+#
+# NOTA: Está disponible una versión en Python compatible con Windows:
+#   python scripts/preprocess.py <directorio_dataset> <directorio_salida> [idioma]
+#
+# Esta versión bash solo funciona en Linux.
 
 set -e
 

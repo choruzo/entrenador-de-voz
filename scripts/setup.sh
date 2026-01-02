@@ -1,6 +1,11 @@
 #!/bin/bash
 # Script de configuración inicial para entrenamiento de voces Piper
 # Optimizado para AMD Radeon RX 6600 con ROCm
+#
+# NOTA: Está disponible una versión en Python compatible con Windows:
+#   python scripts/setup.py
+#
+# Esta versión bash solo funciona en Linux.
 
 set -e
 

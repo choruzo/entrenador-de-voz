@@ -1,6 +1,11 @@
 #!/bin/bash
 # Script de entrenamiento para Piper TTS
 # Optimizado para AMD Radeon RX 6600 (8GB VRAM)
+#
+# NOTA: Está disponible una versión en Python compatible con Windows:
+#   python scripts/train.py <directorio_dataset> [checkpoint_base]
+#
+# Esta versión bash solo funciona en Linux.
 
 set -e
 
