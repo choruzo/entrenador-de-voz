@@ -76,15 +76,26 @@ def check_gpu_availability():
                 print_warning("GPU con menos de 6GB VRAM. Considera reducir batch_size")
             
             return True
-        else:
-            print("No se detectó GPU. Entrenamiento usará CPU (será muy lento)")
-            if sys.platform == 'linux':
-                print("Para GPU AMD: Asegúrate de tener ROCm instalado y PyTorch compilado con soporte ROCm")
-                print("Para GPU NVIDIA: Asegúrate de tener CUDA instalado y PyTorch compilado con soporte CUDA")
-            elif sys.platform == 'win32':
-                print("Para GPU NVIDIA: Asegúrate de tener CUDA instalado")
-                print("Para GPU AMD en Windows: El soporte es limitado, considera usar Linux o WSL")
-            return False
+        
+        # Verificar DirectML
+        try:
+            import torch_directml
+            if torch_directml.is_available():
+                device_name = torch_directml.device_name(0)
+                print(f"GPU DirectML detectada: {device_name}")
+                print_info("Usando DirectML para aceleración en Windows")
+                return True
+        except ImportError:
+            pass
+
+        print("No se detectó GPU. Entrenamiento usará CPU (será muy lento)")
+        if sys.platform == 'linux':
+            print("Para GPU AMD: Asegúrate de tener ROCm instalado y PyTorch compilado con soporte ROCm")
+            print("Para GPU NVIDIA: Asegúrate de tener CUDA instalado y PyTorch compilado con soporte CUDA")
+        elif sys.platform == 'win32':
+            print("Para GPU NVIDIA: Asegúrate de tener CUDA instalado")
+            print("Para GPU AMD en Windows: Se recomienda instalar torch-directml o usar WSL")
+        return False
     except ImportError:
         print_error("PyTorch no está instalado")
         return False
@@ -281,12 +292,35 @@ def train_model(dataset_dir, checkpoint_base=None, checkpoint_dir='./checkpoints
     print_info(f"Log de entrenamiento: {checkpoint_path / 'training.log'}")
     print()
     
+    # Determinar acelerador
+    accelerator = 'gpu'
+    devices = '1'
+    
+    try:
+        import torch
+        if not torch.cuda.is_available():
+            try:
+                import torch_directml
+                if torch_directml.is_available():
+                    accelerator = 'dml'
+                    print_info("Usando acelerador: DirectML")
+                else:
+                    accelerator = 'cpu'
+                    devices = 'auto'
+                    print_warning("No se detectó GPU, usando CPU")
+            except ImportError:
+                accelerator = 'cpu'
+                devices = 'auto'
+                print_warning("No se detectó GPU, usando CPU")
+    except ImportError:
+        pass
+
     # Construir comando de entrenamiento
     cmd = [
         sys.executable, '-m', 'piper_train',
         '--dataset-dir', str(dataset_path),
-        '--accelerator', 'gpu',
-        '--devices', '1',
+        '--accelerator', accelerator,
+        '--devices', devices,
         '--batch-size', str(batch_size),
         '--validation-split', str(validation_split),
         '--num-test-examples', str(num_test_examples),

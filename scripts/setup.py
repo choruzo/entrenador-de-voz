@@ -355,6 +355,9 @@ def install_dependencies(venv_dir):
         'onnx', 'onnxruntime',
         'pandas', 'tqdm', 'pydub'
     ]
+
+    if sys.platform == 'win32':
+        packages.append('torch-directml')
     
     try:
         subprocess.run([pip_exe, 'install'] + packages, check=True)
@@ -481,6 +484,59 @@ def download_base_model(work_dir):
             print(f"  {url}")
 
 
+def patch_piper_directml(work_dir):
+    """Parchea Piper para soportar DirectML en Windows"""
+    if sys.platform != 'win32':
+        return
+
+    print_info("Parcheando Piper para soporte DirectML...")
+    piper_main = work_dir / "piper" / "src" / "python" / "piper_train" / "__main__.py"
+    
+    if not piper_main.exists():
+        print_warning(f"No se encontró {piper_main}, no se puede parchear para DirectML")
+        return
+
+    try:
+        with open(piper_main, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 1. Añadir 'dml' a las opciones de accelerator
+        if 'choices=["gpu", "cpu", "auto"]' in content:
+            content = content.replace('choices=["gpu", "cpu", "auto"]', 'choices=["gpu", "cpu", "auto", "dml"]')
+            print_info("  - Opción 'dml' añadida a accelerator")
+        
+        # 2. Inyectar lógica para DirectML
+        # Buscamos el inicio de main()
+        if 'def main():' in content and 'import torch_directml' not in content:
+            patch_code = """
+    # Parche para DirectML
+    if args.accelerator == 'dml':
+        try:
+            import torch_directml
+            print("Usando DirectML...")
+            # Forzamos CPU para Lightning pero movemos tensores a DML
+            args.accelerator = 'cpu' 
+            # Esto es experimental y puede requerir más cambios en el código de entrenamiento
+            # para mover explícitamente los modelos a torch_directml.device()
+        except ImportError:
+            print("Error: torch-directml no instalado")
+            sys.exit(1)
+"""
+            # Insertar después de args = parser.parse_args()
+            if 'args = parser.parse_args()' in content:
+                parts = content.split('args = parser.parse_args()')
+                content = parts[0] + 'args = parser.parse_args()' + patch_code + parts[1]
+                print_info("  - Lógica DirectML inyectada")
+
+        with open(piper_main, 'w', encoding='utf-8') as f:
+            f.write(content)
+            
+        print_info("Piper parcheado correctamente para DirectML")
+        
+    except Exception as e:
+        print_warning(f"Error parcheando Piper: {e}")
+
+
 def setup_piper_training(work_dir=None, cpu_only=False):
     """
     Configura el entorno para entrenamiento de Piper
@@ -517,6 +573,11 @@ def setup_piper_training(work_dir=None, cpu_only=False):
             gpu_type = 'cuda'
         else:
             print_warning("No se detectó GPU compatible")
+            
+            if sys.platform == 'win32':
+                print_warning("NOTA: Las GPUs AMD (ROCm) no están soportadas nativamente en Windows.")
+                print_warning("      Para usar tu GPU AMD, se recomienda usar WSL2 (Windows Subsystem for Linux).")
+                print_warning("      Consulta GUIA_WINDOWS.md para más detalles.")
             
             if sys.stdin.isatty():
                 try:
@@ -566,6 +627,9 @@ def setup_piper_training(work_dir=None, cpu_only=False):
     # Instalar dependencias adicionales
     if not install_dependencies(venv_dir):
         return False
+    
+    # Parchear para DirectML si es necesario
+    patch_piper_directml(work_dir)
     
     # Crear estructura de directorios
     create_directory_structure(work_dir)

@@ -73,3 +73,5 @@ temp/
 
 # Git
 *.orig
+.github
+.gitignore
