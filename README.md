@@ -143,7 +143,7 @@ afplay prueba.wav # macOS
 
 ### Guías Principales
 
-- **[GUIA_ENTRENAMIENTO.md](GUIA_ENTRENAMIENTO.md)** - Guía completa y detallada
+- **[GUIA_ENTRENAMIENTO.md](GUIA_ENTRENAMIENTO.md)** - Guía completa y detallada para Linux
   - Requisitos del sistema
   - Instalación paso a paso
   - Preparación de datasets
@@ -151,6 +151,12 @@ afplay prueba.wav # macOS
   - Optimizaciones para tu hardware
   - Consejos para mejorar la fluidez
   - Solución de problemas
+
+- **[GUIA_WINDOWS.md](GUIA_WINDOWS.md)** - Guía específica para Windows 11 ⭐ NUEVO
+  - Instalación en Windows
+  - Configuración de dependencias
+  - Uso de scripts Python
+  - Solución de problemas comunes en Windows
 
 ### Scripts Disponibles
 
