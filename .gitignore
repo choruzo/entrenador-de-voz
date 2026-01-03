@@ -75,3 +75,8 @@ temp/
 *.orig
 .github
 .gitignore
+# Ignore large dataset files
+sharvard_sig.zip
+sharvard_dataset.tar.gz
+*.zip
+*.tar.gz

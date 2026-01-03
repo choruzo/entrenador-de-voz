@@ -131,14 +131,44 @@ else
     cd ..
 fi
 
-# Instalar piper-phonemize desde Wheels precompilados
-print_info "Instalando piper-phonemize desde release precompilado..."
-PYTHON_VERSION=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
-PYTHON_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
-print_info "Versión de Python detectada: $PYTHON_VERSION"
+# Instalar piper-phonemize como binario standalone
+print_info "Instalando piper-phonemize binario standalone..."
+PHONEMIZE_VERSION="1.2.0"
+PHONEMIZE_DIR="$WORK_DIR/piper_phonemize"
 
-# Determinar el wheel correcto según la versión de Python
-# Nota: v1.1.0 solo tiene wheels para cp39, cp310 y cp311
+if [ ! -d "$PHONEMIZE_DIR" ]; then
+    print_info "Descargando piper-phonemize ${PHONEMIZE_VERSION}..."
+    PHONEMIZE_URL="https://github.com/rhasspy/piper-phonemize/releases/download/v${PHONEMIZE_VERSION}/piper_phonemize-amd64.tar.gz"
+    
+    wget -c "$PHONEMIZE_URL" -O piper_phonemize.tar.gz || {
+        print_error "No se pudo descargar piper-phonemize"
+        exit 1
+    }
+    
+    print_info "Extrayendo piper-phonemize..."
+    tar -xzf piper_phonemize.tar.gz
+    rm piper_phonemize.tar.gz
+    
+    print_info "piper-phonemize instalado en $PHONEMIZE_DIR"
+else
+    print_info "piper-phonemize ya está instalado en $PHONEMIZE_DIR"
+fi
+
+# Verificar instalación
+if [ -f "$PHONEMIZE_DIR/bin/piper_phonemize" ]; then
+    print_info "Probando piper_phonemize..."
+    echo "Hola mundo" | "$PHONEMIZE_DIR/bin/piper_phonemize" -l es_ES --espeak-data "$PHONEMIZE_DIR/share/espeak-ng-data" > /dev/null 2>&1 && \
+        print_info "✅ piper_phonemize funciona correctamente" || \
+        print_warning "⚠️  piper_phonemize puede tener problemas"
+else
+    print_error "No se pudo instalar piper_phonemize correctamente"
+    exit 1
+fi
+
+# Instalar también el módulo Python si es posible (para compatibilidad)
+print_info "Intentando instalar módulo Python piper-phonemize..."
+PYTHON_VERSION=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+
 case "$PYTHON_VERSION" in
     cp39)
         PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp39-cp39-manylinux_2_28_x86_64.whl"
@@ -149,46 +179,41 @@ case "$PYTHON_VERSION" in
     cp311)
         PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp311-cp311-manylinux_2_28_x86_64.whl"
         ;;
-    cp312|cp313)
-        # Python 3.12+ requiere renombrar el wheel para que sea compatible
-        PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp311-cp311-manylinux_2_28_x86_64.whl"
-        RENAMED_WHEEL="piper_phonemize-1.1.0-py3-none-any.whl"
-        print_info "Adaptando wheel para $PYTHON_VERSION"
-        ;;
     *)
-        print_error "Versión de Python no soportada: $PYTHON_VERSION"
-        print_error "Por favor usa Python 3.9, 3.10, 3.11 o 3.12"
-        exit 1
+        print_warning "Módulo Python no disponible para $PYTHON_VERSION, usando solo binario"
+        PHONEMIZE_WHEEL=""
         ;;
 esac
 
-print_info "Descargando $PHONEMIZE_WHEEL desde GitHub..."
-PHONEMIZE_WHEEL_URL="https://github.com/rhasspy/piper-phonemize/releases/download/v1.1.0/$PHONEMIZE_WHEEL"
-wget -c "$PHONEMIZE_WHEEL_URL" || {
-    print_error "No se pudo descargar piper-phonemize"
-    exit 1
-}
-
-if [ -n "$RENAMED_WHEEL" ]; then
-    # Para Python 3.12+, renombrar el wheel como universal
-    cp "$PHONEMIZE_WHEEL" "$RENAMED_WHEEL"
-    pip install "$RENAMED_WHEEL" --force-reinstall
-    rm "$PHONEMIZE_WHEEL" "$RENAMED_WHEEL"
-else
-    pip install "$PHONEMIZE_WHEEL" --force-reinstall
-    rm "$PHONEMIZE_WHEEL"
+if [ -n "$PHONEMIZE_WHEEL" ]; then
+    PHONEMIZE_WHEEL_URL="https://github.com/rhasspy/piper-phonemize/releases/download/v1.1.0/$PHONEMIZE_WHEEL"
+    wget -q -c "$PHONEMIZE_WHEEL_URL" && \
+        pip install "$PHONEMIZE_WHEEL" --force-reinstall && \
+        rm "$PHONEMIZE_WHEEL" && \
+        print_info "Módulo Python instalado" || \
+        print_warning "Módulo Python no instalado, se usará solo el binario"
 fi
 
 # Instalar Piper training y dependencias
 print_info "Instalando Piper training..."
 cd piper/src/python
 
-# pytorch-lightning 1.7.x tiene metadatos inválidos con pip 25.x
-# Usar versión 1.8.x que es compatible y funciona igual
+# Instalar versiones específicas para compatibilidad
 print_info "Instalando dependencias compatibles..."
 pip install cython
-pip install "pytorch-lightning>=1.8.0,<2.0.0"
-pip install librosa onnxruntime
+
+# PyTorch 2.2.0 para compatibilidad con checkpoints antiguos
+if ! command -v rocm-smi &> /dev/null; then
+    print_info "Instalando PyTorch 2.2.0 para CPU..."
+    pip install torch==2.2.0 torchvision==0.17.0 torchaudio==2.2.0 --index-url https://download.pytorch.org/whl/cpu
+fi
+
+# NumPy 1.26.x para compatibilidad con PyTorch 2.2.0
+pip install "numpy>=1.26,<2.0"
+
+# pytorch-lightning 1.9.x compatible con pip 25.x
+pip install "pytorch-lightning>=1.9.0,<2.0.0"
+pip install librosa onnxruntime scipy
 
 pip install -e . --no-deps || {
     print_warning "Instalación en modo editable falló, instalando dependencias manualmente"
@@ -200,16 +225,6 @@ cd ../../..
 # Instalar dependencias adicionales
 print_info "Instalando dependencias adicionales..."
 pip install numpy scipy librosa soundfile onnx onnxruntime
-
-# Crear estructura de directorios
-print_info "Creando estructura de directorios..."
-mkdir -p datasets
-mkdir -p models_base
-mkdir -p checkpoints
-mkdir -p outputs
-
-# Crear archivo de variables de entorno
-print_info "Creando archivo de configuración..."
 cat > env_setup.sh << 'EOF'
 #!/bin/bash
 # Variables de entorno para optimizar entrenamiento con AMD GPU
@@ -228,6 +243,22 @@ export MODELS_DIR="$PIPER_TRAIN_DIR/models_base"
 export CHECKPOINTS_DIR="$PIPER_TRAIN_DIR/checkpoints"
 export OUTPUTS_DIR="$PIPER_TRAIN_DIR/outputs"
 
+# Añadir piper_phonemize al PATH
+if [ -d "$PIPER_TRAIN_DIR/piper_phonemize/bin" ]; then
+    export PATH="$PIPER_TRAIN_DIR/piper_phonemize/bin:$PATH"
+    export LD_LIBRARY_PATH="$PIPER_TRAIN_DIR/piper_phonemize/lib:$LD_LIBRARY_PATH"
+fi
+
+echo "Entorno de Piper activado"
+echo "Directorio de trabajo: $PIPER_TRAIN_DIR"
+
+# Mostrar estado de GPU
+if command -v rocm-smi &> /dev/null; then
+    echo ""
+    echo "Estado de GPU AMD:"
+    rocm-smi --showuse --showtemp --showmeminfo vram
+fi
+EOF
 echo "Entorno de Piper activado"
 echo "Directorio de trabajo: $PIPER_TRAIN_DIR"
 
@@ -256,12 +287,6 @@ if [ ! -f "en_US-lessac-high.onnx.json" ]; then
     wget -c https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx.json || \
         print_warning "No se pudo descargar la configuración. Descárgalo manualmente de Hugging Face."
 fi
-cd ..
-
-# Nota informativa
-print_info "El modelo en_US-lessac-high se puede re-entrenar con tu dataset en español"
-print_info "Esto permite aprovechar la arquitectura de alta calidad del modelo lessac"
-
 echo ""
 echo "=========================================="
 print_info "¡Configuración completada!"
@@ -271,9 +296,25 @@ echo "Para usar el entorno, ejecuta:"
 echo "  cd $WORK_DIR"
 echo "  source env_setup.sh"
 echo ""
-echo "Luego sigue la GUIA_ENTRENAMIENTO.md para:"
-echo "  1. Preparar tu dataset"
-echo "  2. Preprocesar los datos"
+echo "Scripts disponibles:"
+echo "  1. Preprocesar dataset:"
+echo "     bash scripts/preprocess_dataset.sh <ruta_dataset>"
+echo ""
+echo "  2. Verificar dataset:"
+echo "     bash scripts/verify_dataset.sh <ruta_dataset>"
+echo ""
+echo "  3. Entrenar modelo:"
+echo "     python -m piper_train --dataset-dir <dataset> --quality high \\"
+echo "       --resume_from_checkpoint models_base/en_US-lessac-high.ckpt \\"
+echo "       --checkpoint-epochs 1 --max_epochs 10000"
+echo ""
+echo "  4. Exportar modelo:"
+echo "     bash scripts/export.sh <checkpoint.ckpt> <output_dir>"
+echo ""
+print_info "Directorio de trabajo: $WORK_DIR"
+print_info "Guía completa: GUIA_ENTRENAMIENTO.md"
+print_info "Scripts en: $(dirname $0)/"
+echo "" 2. Preprocesar los datos"
 echo "  3. Entrenar el modelo"
 echo "  4. Exportar y probar"
 echo ""
