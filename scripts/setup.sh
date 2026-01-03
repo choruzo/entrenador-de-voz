@@ -131,11 +131,70 @@ else
     cd ..
 fi
 
-# Instalar Piper para entrenamiento
+# Instalar piper-phonemize desde Wheels precompilados
+print_info "Instalando piper-phonemize desde release precompilado..."
+PYTHON_VERSION=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')")
+PYTHON_MINOR=$(python3 -c "import sys; print(sys.version_info.minor)")
+print_info "Versión de Python detectada: $PYTHON_VERSION"
+
+# Determinar el wheel correcto según la versión de Python
+# Nota: v1.1.0 solo tiene wheels para cp39, cp310 y cp311
+case "$PYTHON_VERSION" in
+    cp39)
+        PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp39-cp39-manylinux_2_28_x86_64.whl"
+        ;;
+    cp310)
+        PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp310-cp310-manylinux_2_28_x86_64.whl"
+        ;;
+    cp311)
+        PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp311-cp311-manylinux_2_28_x86_64.whl"
+        ;;
+    cp312|cp313)
+        # Python 3.12+ requiere renombrar el wheel para que sea compatible
+        PHONEMIZE_WHEEL="piper_phonemize-1.1.0-cp311-cp311-manylinux_2_28_x86_64.whl"
+        RENAMED_WHEEL="piper_phonemize-1.1.0-py3-none-any.whl"
+        print_info "Adaptando wheel para $PYTHON_VERSION"
+        ;;
+    *)
+        print_error "Versión de Python no soportada: $PYTHON_VERSION"
+        print_error "Por favor usa Python 3.9, 3.10, 3.11 o 3.12"
+        exit 1
+        ;;
+esac
+
+print_info "Descargando $PHONEMIZE_WHEEL desde GitHub..."
+PHONEMIZE_WHEEL_URL="https://github.com/rhasspy/piper-phonemize/releases/download/v1.1.0/$PHONEMIZE_WHEEL"
+wget -c "$PHONEMIZE_WHEEL_URL" || {
+    print_error "No se pudo descargar piper-phonemize"
+    exit 1
+}
+
+if [ -n "$RENAMED_WHEEL" ]; then
+    # Para Python 3.12+, renombrar el wheel como universal
+    cp "$PHONEMIZE_WHEEL" "$RENAMED_WHEEL"
+    pip install "$RENAMED_WHEEL" --force-reinstall
+    rm "$PHONEMIZE_WHEEL" "$RENAMED_WHEEL"
+else
+    pip install "$PHONEMIZE_WHEEL" --force-reinstall
+    rm "$PHONEMIZE_WHEEL"
+fi
+
+# Instalar Piper training y dependencias
 print_info "Instalando Piper training..."
 cd piper/src/python
-pip install -e .
-pip install piper-phonemize
+
+# pytorch-lightning 1.7.x tiene metadatos inválidos con pip 25.x
+# Usar versión 1.8.x que es compatible y funciona igual
+print_info "Instalando dependencias compatibles..."
+pip install cython
+pip install "pytorch-lightning>=1.8.0,<2.0.0"
+pip install librosa onnxruntime
+
+pip install -e . --no-deps || {
+    print_warning "Instalación en modo editable falló, instalando dependencias manualmente"
+    pip install -r requirements.txt || print_warning "Algunas dependencias pueden faltar"
+}
+
 cd ../../..
 
 # Instalar dependencias adicionales
@@ -182,21 +241,26 @@ EOF
 
 chmod +x env_setup.sh
 
-# Descargar modelo base es_ES-sharvard-medium
-print_info "Descargando modelo base es_ES-sharvard-medium..."
+# Descargar modelo base en_US-lessac-high (modelo de alta calidad en inglés)
+print_info "Descargando modelo base en_US-lessac-high (alta calidad)..."
+print_info "Este modelo se re-entrenará con datos en español para mejor calidad"
 cd models_base
-if [ ! -f "es_ES-sharvard-medium.ckpt" ]; then
-    # Intentar descargar el checkpoint
-    wget -c https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/sharvard/medium/es_ES-sharvard-medium.ckpt || \
-        print_warning "No se pudo descargar el checkpoint. Descárgalo manualmente de Hugging Face."
+if [ ! -f "en_US-lessac-high.ckpt" ]; then
+    # Descargar el checkpoint desde el repositorio de checkpoints
+    wget -c "https://huggingface.co/datasets/rhasspy/piper-checkpoints/resolve/7bf647cb000d8c8319c6cdd4289dd6b7d0d3eeb8/en/en_US/lessac/high/epoch=2218-step=838782.ckpt" -O en_US-lessac-high.ckpt || \
+        print_warning "No se pudo descargar el checkpoint. Descárgalo manualmente desde: https://huggingface.co/datasets/rhasspy/piper-checkpoints/tree/7bf647cb000d8c8319c6cdd4289dd6b7d0d3eeb8/en/en_US/lessac/high"
 fi
 
-if [ ! -f "es_ES-sharvard-medium.onnx.json" ]; then
+if [ ! -f "en_US-lessac-high.onnx.json" ]; then
     # Intentar descargar la configuración
-    wget -c https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_ES/sharvard/medium/es_ES-sharvard-medium.onnx.json || \
+    wget -c https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/high/en_US-lessac-high.onnx.json || \
         print_warning "No se pudo descargar la configuración. Descárgalo manualmente de Hugging Face."
 fi
 cd ..
+
+# Nota informativa
+print_info "El modelo en_US-lessac-high se puede re-entrenar con tu dataset en español"
+print_info "Esto permite aprovechar la arquitectura de alta calidad del modelo lessac"
 
 echo ""
 echo "=========================================="
