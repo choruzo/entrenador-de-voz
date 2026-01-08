@@ -72,12 +72,17 @@ git submodule update --init --recursive
 export CUDA_HOME=/usr/local/cuda
 export TORCH_CUDA_ARCH_LIST="12.0"
 export USE_CUDA=1
+export USE_ROCM=0
 export USE_NINJA=1
 export MAX_JOBS=$(nproc)
 export CMAKE_CUDA_COMPILER=$(command -v nvcc)
+export USE_NCCL=0
+export USE_SYSTEM_NCCL=0
+export BUILD_TEST=0
 
 # Limpieza de builds previos
 python setup.py clean || true
+rm -rf build || true
 
 # Construir e instalar en editable
 echo -e "${YELLOW}🏗️ Compilando PyTorch (esto puede tardar 30-90 min)...${NC}"
