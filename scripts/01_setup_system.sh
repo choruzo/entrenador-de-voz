@@ -19,9 +19,32 @@ echo -e "\n${YELLOW}🔍 Verificando GPU NVIDIA...${NC}"
 if command -v nvidia-smi &> /dev/null; then
     nvidia-smi
     echo -e "${GREEN}✅ GPU NVIDIA detectada${NC}"
+    DRIVER_VERSION=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+    CUDA_VERSION=$(nvidia-smi | grep "CUDA Version" | sed 's/.*CUDA Version: \([0-9.]*\).*/\1/')
+    echo -e "${GREEN}   Driver: $DRIVER_VERSION${NC}"
+    echo -e "${GREEN}   CUDA Runtime: $CUDA_VERSION${NC}"
+    
+    # Verificar que el driver sea reciente (>=525 para CUDA 12+)
+    DRIVER_MAJOR=$(echo $DRIVER_VERSION | cut -d. -f1)
+    if [ "$DRIVER_MAJOR" -lt 525 ]; then
+        echo -e "${YELLOW}⚠️ ADVERTENCIA: Se recomienda actualizar los drivers NVIDIA${NC}"
+        echo -e "${YELLOW}   Para RTX 5060 Ti, instala drivers >= 525${NC}"
+        echo -e "${YELLOW}   Visita: https://www.nvidia.com/Download/index.aspx${NC}"
+    fi
 else
-    echo -e "${YELLOW}⚠️ nvidia-smi no encontrado. Entrenamiento será en CPU (muy lento)${NC}"
-    echo "Para usar GPU, instala los drivers NVIDIA y CUDA toolkit"
+    echo -e "${RED}⚠️ nvidia-smi no encontrado${NC}"
+    echo -e "${YELLOW}Para usar la GPU NVIDIA RTX 5060 Ti:${NC}"
+    echo -e "${YELLOW}1. Instala los drivers NVIDIA más recientes:${NC}"
+    echo -e "   ${YELLOW}sudo apt install nvidia-driver-545${NC}"
+    echo -e "${YELLOW}2. Reinicia el sistema${NC}"
+    echo -e "${YELLOW}3. Verifica con: nvidia-smi${NC}"
+    echo ""
+    read -p "¿Continuar sin GPU? El entrenamiento será MUY lento (s/n): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+        echo "Instalación pausada. Instala los drivers NVIDIA y vuelve a ejecutar."
+        exit 0
+    fi
 fi
 
 # Actualizar repositorios

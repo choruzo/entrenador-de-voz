@@ -5,10 +5,39 @@ Este conjunto de scripts convierte el notebook de Google Colab en scripts bash m
 ## 📋 Requisitos
 
 - **Sistema Operativo**: Ubuntu 20.04+ (o derivados como Linux Mint, Pop!_OS)
-- **GPU**: NVIDIA con CUDA (opcional pero muy recomendado)
+- **GPU**: NVIDIA con soporte CUDA (opcional pero muy recomendado)
+  - **RTX 30xx/40xx/50xx**: Compatible (incluye RTX 5060 Ti)
+  - **Drivers**: NVIDIA >= 525 (para CUDA 12.x)
+  - **VRAM**: Mínimo 4 GB, recomendado 6 GB+
 - **RAM**: Mínimo 8 GB, recomendado 16 GB
 - **Espacio en disco**: ~5-10 GB libres
 - **Python**: 3.8 o superior
+
+### Verificar compatibilidad de GPU
+
+Para verificar tu GPU y drivers:
+```bash
+nvidia-smi
+```
+
+Deberías ver algo como:
+```
++---------------------------------------------------------------------------------------+
+| NVIDIA-SMI 545.xx       Driver Version: 545.xx       CUDA Version: 12.3             |
+|-----------------------------------------+----------------------+----------------------+
+| GPU  Name                  TCC/WDDM    | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |
+|=========================================+======================+======================|
+|   0  NVIDIA GeForce RTX 5060 Ti         | 00000000:01:00.0 On |                  N/A |
+```
+
+Si no tienes `nvidia-smi`, instala los drivers:
+```bash
+# Para Ubuntu 22.04+
+sudo apt update
+sudo apt install nvidia-driver-545
+sudo reboot
+```
 
 ## 🚀 Inicio Rápido
 
