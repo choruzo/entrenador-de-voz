@@ -138,7 +138,7 @@ PHONEMIZE_DIR="$WORK_DIR/piper_phonemize"
 
 if [ ! -d "$PHONEMIZE_DIR" ]; then
     print_info "Descargando piper-phonemize ${PHONEMIZE_VERSION}..."
-    PHONEMIZE_URL="https://github.com/rhasspy/piper-phonemize/releases/download/v${PHONEMIZE_VERSION}/piper_phonemize-amd64.tar.gz"
+    PHONEMIZE_URL="https://github.com/rhasspy/piper-phonemize/releases/download/2023.11.14-4/piper-phonemize_linux_x86_64.tar.gz"
     
     wget -c "$PHONEMIZE_URL" -O piper_phonemize.tar.gz || {
         print_error "No se pudo descargar piper-phonemize"
@@ -225,6 +225,7 @@ cd ../../..
 # Instalar dependencias adicionales
 print_info "Instalando dependencias adicionales..."
 pip install numpy scipy librosa soundfile onnx onnxruntime
+
 cat > env_setup.sh << 'EOF'
 #!/bin/bash
 # Variables de entorno para optimizar entrenamiento con AMD GPU
@@ -249,16 +250,6 @@ if [ -d "$PIPER_TRAIN_DIR/piper_phonemize/bin" ]; then
     export LD_LIBRARY_PATH="$PIPER_TRAIN_DIR/piper_phonemize/lib:$LD_LIBRARY_PATH"
 fi
 
-echo "Entorno de Piper activado"
-echo "Directorio de trabajo: $PIPER_TRAIN_DIR"
-
-# Mostrar estado de GPU
-if command -v rocm-smi &> /dev/null; then
-    echo ""
-    echo "Estado de GPU AMD:"
-    rocm-smi --showuse --showtemp --showmeminfo vram
-fi
-EOF
 echo "Entorno de Piper activado"
 echo "Directorio de trabajo: $PIPER_TRAIN_DIR"
 
