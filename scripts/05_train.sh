@@ -104,12 +104,16 @@ echo ""
 
 python3 -m piper_train \
   --dataset-dir "$DATASET_DIR" \
+    --accelerator "$ACCELERATOR" \
+    --devices "$DEVICES" \
   --batch-size "$BATCH_SIZE" \
   --validation-split "$VALIDATION_SPLIT" \
   --num-test-examples "$NUM_TEST_EXAMPLES" \
-    --resume_from_single_speaker_checkpoint "$CHECKPOINT_PATH" \
+    --resume_from_checkpoint "$CHECKPOINT_PATH" \
   --checkpoint-epochs "$CHECKPOINT_EPOCHS" \
-  --quality "$QUALITY"
+    --precision "$PRECISION" \
+    --max_epochs "$MAX_EPOCHS" \
+    --quality "$QUALITY"
 
 # Verificar si el entrenamiento completó exitosamente
 if [ $? -eq 0 ]; then

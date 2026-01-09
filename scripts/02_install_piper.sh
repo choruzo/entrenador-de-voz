@@ -247,6 +247,12 @@ EOF
 
 python3 "$COMPAT_PATCH"
 
+# Si quedó aplicado el parche de compatibilidad que comenta Trainer.add_argparse_args,
+# restaurarlo porque usamos PyTorch Lightning 1.9.x
+if grep -q "# Trainer.add_argparse_args(parser)  # pl_compat_patch applied" "$MAIN_FILE"; then
+    sed -i 's/# Trainer.add_argparse_args(parser)  # pl_compat_patch applied/Trainer.add_argparse_args(parser)/' "$MAIN_FILE"
+fi
+
 # Instalar piper-train
 echo -e "\n${YELLOW}🛠️ Instalando piper-train...${NC}"
 cd "$PIPER_PYTHON_DIR"

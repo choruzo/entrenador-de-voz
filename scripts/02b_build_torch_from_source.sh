@@ -48,7 +48,8 @@ sudo apt-get install -y \
 
 # Paquetes Python para build
 pip install --upgrade pip
-pip install numpy pyyaml typing_extensions future six requests dataclasses ninja
+# packaging es requerido por generate_torch_version.py; añadir herramientas comunes de build
+pip install packaging setuptools wheel numpy pyyaml typing_extensions future six requests dataclasses ninja jinja2
 
 # Clonar PyTorch (si no existe)
 if [ ! -d "pytorch" ]; then
@@ -74,7 +75,8 @@ export TORCH_CUDA_ARCH_LIST="12.0"
 export USE_CUDA=1
 export USE_ROCM=0
 export USE_NINJA=1
-export MAX_JOBS=$(nproc)
+#export MAX_JOBS=$(nproc)
+export MAX_JOBS=5
 export CMAKE_CUDA_COMPILER=$(command -v nvcc)
 export USE_NCCL=0
 export USE_SYSTEM_NCCL=0
